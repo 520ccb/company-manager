@@ -1,16 +1,7 @@
 /**
- * Company Manager Plugin v1.1.0
+ * Company Manager Plugin v1.2.0
  * 媒体公司管理器 - 浮窗式公司管理面板
- *
- * 功能：
- *   1. 首页：公司壁纸（50张预置+本地上传）、公司名称编辑、账户余额、快捷入口
- *   2. 作品库：coser写真集/短视频/小电影/ASMR 四分类，作品详情+收益
- *   3. 推特APP：短视频/小电影/音声/美图 四频道，推文流
- *   4. 发布任务：自定义任务要求+报酬，员工投稿，发布/收藏
- *   5. 后端互动：所有数据存入角色变量，关键操作同步到聊天输入框
- *   6. 浮窗修复：最高z-index、多重初始化、Ctrl+Shift+C快捷键、控制台openCM()
- *
- * 兼容：酒馆助手 (Tauri/浏览器)，适用于任意角色卡
+ * v1.2.0: FAB上移避免遮挡 + 底部"公司管理"按钮 + 6个全局别名 + 手机APP入口
  */
 (function () {
     'use strict';
@@ -124,7 +115,7 @@
         return false;
     }
     var CM_CSS = [
-        '#cm-fab{position:fixed;right:16px;bottom:90px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;z-index:2147483647;box-shadow:0 4px 20px rgba(102,126,234,0.5);transition:transform .2s,box-shadow .2s;user-select:none;-webkit-user-select:none;border:2px solid rgba(255,255,255,0.3);}',
+        '#cm-fab{position:fixed;right:16px;bottom:160px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;z-index:2147483647;box-shadow:0 4px 20px rgba(102,126,234,0.5);transition:transform .2s,box-shadow .2s;user-select:none;-webkit-user-select:none;border:2px solid rgba(255,255,255,0.3);}',
         '#cm-fab:hover{transform:scale(1.08);}','#cm-fab:active{transform:scale(0.95);}','#cm-fab.cm-dragging{transition:none;cursor:grabbing;}',
         '@keyframes cmPulse{0%{box-shadow:0 4px 20px rgba(102,126,234,0.5);}50%{box-shadow:0 4px 30px rgba(102,126,234,0.8),0 0 0 6px rgba(102,126,234,0.15);}100%{box-shadow:0 4px 20px rgba(102,126,234,0.5);}}',
         '#cm-fab{animation:cmPulse 2.5s ease-in-out infinite;}',
@@ -216,7 +207,11 @@
         '.cm-submission-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}',
         '.cm-submission-author{font-size:12px;font-weight:600;color:#333;}',
         '.cm-submission-content{font-size:12px;color:#666;line-height:1.5;white-space:pre-wrap;}',
-        '.cm-submission-actions{display:flex;gap:6px;margin-top:8px;}','.cm-submission-actions .cm-btn{padding:6px 10px;font-size:11px;flex:none;}'
+        '.cm-submission-actions{display:flex;gap:6px;margin-top:8px;}','.cm-submission-actions .cm-btn{padding:6px 10px;font-size:11px;flex:none;}',
+        '.cm-fab-badge{position:absolute;top:-2px;right:-2px;width:18px;height:18px;border-radius:50%;background:#ef4444;color:#fff;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:600;}',
+        '#cm-toolbar-btn{position:fixed;left:50%;transform:translateX(-50%);bottom:8px;z-index:2147483647;padding:5px 14px;border-radius:16px;border:none;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 2px 10px rgba(102,126,234,0.4);display:flex;align-items:center;gap:4px;}',
+        '#cm-toolbar-btn:active{transform:translateX(-50%) scale(0.95);}',
+        '#cm-toolbar-btn i{font-size:11px;}'
     ].join('\n');
     function injectStyle(target) { var s = document.createElement('style'); s.textContent = CM_CSS; (target || document.head).appendChild(s); }
     function createFab() {
@@ -405,22 +400,41 @@
             sendToChat(chatText); modal.remove(); renderTasks(); showToast('任务已发布，已通知员工');
         });
     }
+    function injectToolbarButton() {
+        try {
+            if (document.getElementById('cm-toolbar-btn')) return;
+            var btn = document.createElement('button');
+            btn.id = 'cm-toolbar-btn';
+            btn.innerHTML = '<i class="fas fa-building"></i> 公司管理';
+            btn.title = '打开公司管理器 (Ctrl+Shift+C)';
+            btn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); togglePanel(); });
+            var sendBtn = document.getElementById('send_but') || document.querySelector('button[id*="send"]');
+            if (sendBtn && sendBtn.parentNode) { sendBtn.parentNode.style.position = sendBtn.parentNode.style.position || 'relative'; sendBtn.parentNode.appendChild(btn); }
+            else { document.body.appendChild(btn); }
+        } catch (e) { console.warn('[CM] injectToolbarButton fail:', e); }
+    }
     function init() {
         if (window[INIT_FLAG]) return;
         try {
-            window[INIT_FLAG] = true; loadAll(); injectStyle(); createFab(); createPanel();
+            window[INIT_FLAG] = true; loadAll(); injectStyle(); createFab(); createPanel(); injectToolbarButton();
             document.addEventListener('keydown', function (e) { if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) { e.preventDefault(); togglePanel(); } });
-            window.openCM = togglePanel; window.cmOpen = togglePanel; window.companyManager = { open: togglePanel, toggle: togglePanel };
-            console.log('[CompanyManager] v1.1.0 已加载 | 快捷键: Ctrl+Shift+C | 控制台: openCM()');
+            window.openCM = togglePanel; window.cmOpen = togglePanel; window.openCompanyManager = togglePanel; window.toggleCompanyManager = togglePanel; window.showCompanyManager = togglePanel;
+            window.companyManager = { open: togglePanel, toggle: togglePanel, show: togglePanel };
+            console.log('[CompanyManager] v1.2.0 已加载 | 触发: 右下角浮窗 / 底部"公司管理"按钮 / Ctrl+Shift+C / 控制台 openCM()');
         } catch (e) { console.error('[CompanyManager] 初始化失败:', e); window[INIT_FLAG] = false; }
     }
     function ensureFabVisible() {
-        try { var fab = document.getElementById(FAB_ID); if (!fab) { createFab(); fab = document.getElementById(FAB_ID); } if (fab) { fab.style.display = 'flex'; fab.style.visibility = 'visible'; fab.style.opacity = '1'; fab.style.zIndex = '2147483647'; } } catch (e) { console.warn('[CM] ensureFabVisible fail:', e); }
+        try {
+            var fab = document.getElementById(FAB_ID);
+            if (!fab) { createFab(); fab = document.getElementById(FAB_ID); }
+            if (fab) { fab.style.display = 'flex'; fab.style.visibility = 'visible'; fab.style.opacity = '1'; fab.style.zIndex = '2147483647'; }
+            if (!document.getElementById('cm-toolbar-btn')) injectToolbarButton();
+        } catch (e) { console.warn('[CM] ensureFabVisible fail:', e); }
     }
     function start() {
         function tryInit() { if (window[INIT_FLAG]) return; if (document.body || document.documentElement) init(); }
         if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', tryInit); } else { tryInit(); }
-        [100, 300, 800, 1500, 2500, 4000, 6000, 10000].forEach(function (d) { setTimeout(function () { if (!window[INIT_FLAG]) tryInit(); else ensureFabVisible(); }, d); });
+        [100, 300, 800, 1500, 2500, 4000, 6000, 10000, 15000].forEach(function (d) { setTimeout(function () { if (!window[INIT_FLAG]) tryInit(); else ensureFabVisible(); }, d); });
         setInterval(ensureFabVisible, 3000);
         try { var observer = new MutationObserver(function () { if (!window[INIT_FLAG]) tryInit(); else ensureFabVisible(); }); if (document.body) observer.observe(document.body, { childList: true, subtree: false }); else if (document.documentElement) observer.observe(document.documentElement, { childList: true }); } catch (e) { console.warn('[CM] MutationObserver fail:', e); }
     }
